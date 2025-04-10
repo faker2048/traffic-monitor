@@ -59,6 +59,7 @@ class TrafficMonitor:
         self.interval = threshold_config.get('interval', 100)  # in GB
         self.critical_percentage = threshold_config.get('critical_percentage', 90)
         self.critical_threshold = (self.total_limit * self.critical_percentage) / 100
+        self.check_interval = threshold_config.get('check_interval', 100)
         
         # Initialize tracking of sent notifications
         self.notified_thresholds: List[int] = []
@@ -135,7 +136,7 @@ class TrafficMonitor:
         except Exception as e:
             self.logger.error(f"Error checking traffic: {e}")
     
-    def run(self, check_interval: int = 3600) -> int:
+    def run(self) -> int:
         """
         Run the traffic monitor in a loop.
         
@@ -145,12 +146,12 @@ class TrafficMonitor:
         Returns:
             Exit code
         """
-        self.logger.info(f"Starting traffic monitoring with {check_interval}s interval")
+        self.logger.info(f"Starting traffic monitoring with {self.check_interval}s interval")
         
         try:
             while True:
                 self.check_traffic()
-                time.sleep(check_interval)
+                time.sleep(self.check_interval)
         
         except KeyboardInterrupt:
             self.logger.info("Traffic monitoring stopped by user")

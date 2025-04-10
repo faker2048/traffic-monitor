@@ -75,6 +75,10 @@ class EmailNotifier:
             'critical': '#F44336'   # Red
         }.get(level.lower(), '#2196F3')
         
+        # 先替换消息中的换行符
+        formatted_message = message.replace('\n', '<br>')
+        
+        # 然后在 f-string 中使用已格式化的消息
         html_content = f"""
         <html>
         <head>
@@ -86,7 +90,7 @@ class EmailNotifier:
         </head>
         <body>
             <div class="message">
-                {message.replace('\n', '<br>')}
+                {formatted_message}
             </div>
             <div class="footer">
                 This is an automated message from the Traffic Monitor system.

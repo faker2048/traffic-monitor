@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import json
 import logging
 import subprocess
+import re
+from datetime import datetime
 from typing import Dict, Any, Optional, List
 
 class VnStatDataProvider:
@@ -41,19 +42,20 @@ class VnStatDataProvider:
             self.logger.error(f"Failed to verify vnstat installation: {e}")
             raise RuntimeError("vnstat is not installed or not in PATH")
     
-    def _run_vnstat_command(self, args: List[str]) -> Dict[str, Any]:
+    def _run_vnstat_command(self, args: List[str]) -> str:
         """
-        Run vnstat with given arguments and return the result as JSON.
+        Run vnstat with given arguments and return the text output.
         
         Args:
             args: List of arguments to pass to vnstat
             
         Returns:
-            Dictionary containing the parsed JSON output
+            String containing the command output
         """
-        cmd = ["vnstat"] + args
+        cmd = ["vnstat"]
         if self.interface:
             cmd.extend(["-i", self.interface])
+        cmd.extend(args)
             
         self.logger.debug(f"Running command: {' '.join(cmd)}")
         
@@ -66,17 +68,51 @@ class VnStatDataProvider:
                 text=True
             )
             
-            return json.loads(result.stdout)
+            return result.stdout
         
         except subprocess.SubprocessError as e:
             self.logger.error(f"Failed to run vnstat command: {e}")
             if e.stderr:
                 self.logger.error(f"Error output: {e.stderr}")
             raise RuntimeError(f"Failed to get data from vnstat: {e}")
+    
+    def _parse_size_to_gb(self, size_str: str) -> float:
+        """
+        Parse a size string (e.g., '10.5 GiB' or '800 MiB') to GB.
         
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse vnstat output as JSON: {e}")
-            raise RuntimeError(f"Invalid JSON output from vnstat: {e}")
+        Args:
+            size_str: Size string to parse
+            
+        Returns:
+            Size in GB as float
+        """
+        try:
+            # 提取数值和单位
+            match = re.match(r'([\d.]+)\s+(\w+)', size_str)
+            if not match:
+                self.logger.warning(f"Failed to parse size string: {size_str}")
+                return 0.0
+                
+            value, unit = match.groups()
+            value = float(value)
+            unit = unit.lower()
+            
+            # 转换为GB
+            if 'gib' in unit:
+                return value  # 已经是GB
+            elif 'mib' in unit:
+                return value / 1024.0  # MB转GB
+            elif 'kib' in unit:
+                return value / (1024.0 * 1024.0)  # KB转GB
+            elif 'tib' in unit:
+                return value * 1024.0  # TB转GB
+            else:
+                self.logger.warning(f"Unknown unit in size string: {size_str}")
+                return value  # 假设已经是GB
+                
+        except Exception as e:
+            self.logger.error(f"Error parsing size string '{size_str}': {e}")
+            return 0.0
     
     def get_current_month_usage(self) -> float:
         """
@@ -86,35 +122,55 @@ class VnStatDataProvider:
             Float representing total traffic in GB
         """
         try:
-            # Get current month's data
-            data = self._run_vnstat_command(["--json", "-m"])
+            # 获取月度数据输出
+            output = self._run_vnstat_command(["-m"])
             
-            # Extract the current month's data (last entry in the array)
-            interfaces = data.get("interfaces", [])
-            if not interfaces:
-                raise RuntimeError("No interface data found in vnstat output")
+            # 解析输出找到当前月份行
+            current_month = datetime.now().strftime("%Y-%m")
+            month_abbr = datetime.now().strftime("%b").lower()
             
-            traffic = interfaces[0].get("traffic", {})
-            months = traffic.get("months", [])
+            lines = output.strip().split('\n')
+            total_gb = 0.0
             
-            if not months:
-                self.logger.warning("No monthly data found in vnstat output")
-                return 0.0
+            # 寻找当前月份行
+            for line in lines:
+                # 尝试匹配当前月份
+                if current_month in line.lower() or month_abbr in line.lower():
+                    # 提取流量数据
+                    parts = line.split()
+                    for i, part in enumerate(parts):
+                        if i > 0 and ('gib' in part.lower() or 'mib' in part.lower() or 'tib' in part.lower()):
+                            size_str = f"{parts[i-1]} {part}"
+                            if 'total' in line.lower() and ':' in line:
+                                # 已经找到总量
+                                total_gb = self._parse_size_to_gb(size_str)
+                                break
+                            elif i > 2 and parts[i-2].lower() in ['total', '|']:
+                                # 总量列
+                                total_gb = self._parse_size_to_gb(size_str)
+                                break
             
-            # Get the latest month entry
-            current_month = months[-1]
-            
-            # Calculate total (rx + tx) in GB
-            rx_bytes = current_month.get("rx", 0)
-            tx_bytes = current_month.get("tx", 0)
-            total_bytes = rx_bytes + tx_bytes
-            
-            # Convert to GB (bytes to GB: divide by 1024^3)
-            total_gb = total_bytes / (1024 ** 3)
+            if total_gb == 0.0:
+                # 如果未找到总量，尝试手动计算（找RX和TX列）
+                for line in lines:
+                    if current_month in line.lower() or month_abbr in line.lower():
+                        rx_gb = 0.0
+                        tx_gb = 0.0
+                        parts = line.split()
+                        for i, part in enumerate(parts):
+                            if i > 0 and ('gib' in part.lower() or 'mib' in part.lower() or 'tib' in part.lower()):
+                                if 'rx' in line.lower() and rx_gb == 0.0:
+                                    rx_gb = self._parse_size_to_gb(f"{parts[i-1]} {part}")
+                                elif 'tx' in line.lower() and tx_gb == 0.0:
+                                    tx_gb = self._parse_size_to_gb(f"{parts[i-1]} {part}")
+                        
+                        if rx_gb > 0.0 or tx_gb > 0.0:
+                            total_gb = rx_gb + tx_gb
+                            break
             
             self.logger.debug(f"Current month usage: {total_gb:.2f}GB")
             return total_gb
-        
+            
         except Exception as e:
             self.logger.error(f"Error getting current month usage: {e}")
             raise RuntimeError(f"Failed to get current month usage: {e}") from e
@@ -130,28 +186,44 @@ class VnStatDataProvider:
             Dictionary with dates as keys and usage in GB as values
         """
         try:
-            data = self._run_vnstat_command(["--json", "-d"])
+            # 获取日数据输出
+            output = self._run_vnstat_command(["-d"])
             
-            interfaces = data.get("interfaces", [])
-            if not interfaces:
-                raise RuntimeError("No interface data found in vnstat output")
-            
+            lines = output.strip().split('\n')
             daily_usage = {}
-            days_data = interfaces[0].get("traffic", {}).get("days", [])
             
-            for day in days_data[-days:]:
-                date = day.get("date", {})
-                date_str = f"{date.get('year')}-{date.get('month'):02d}-{date.get('day'):02d}"
+            # 查找日期行和对应的流量
+            date_pattern = re.compile(r'(\d{2}/\d{2}/\d{2}|\d{4}-\d{2}-\d{2}|yesterday|today)')
+            current_date = None
+            
+            for line in lines:
+                # 尝试查找日期
+                date_match = date_pattern.search(line.lower())
+                if date_match:
+                    date_str = date_match.group(1)
+                    
+                    # 处理特殊日期
+                    if date_str == 'today':
+                        date_str = datetime.now().strftime("%Y-%m-%d")
+                    elif date_str == 'yesterday':
+                        yesterday = datetime.now()
+                        yesterday = yesterday.replace(day=yesterday.day-1)
+                        date_str = yesterday.strftime("%Y-%m-%d")
+                    
+                    current_date = date_str
+                    continue
                 
-                rx_bytes = day.get("rx", 0)
-                tx_bytes = day.get("tx", 0)
-                total_bytes = rx_bytes + tx_bytes
-                total_gb = total_bytes / (1024 ** 3)
-                
-                daily_usage[date_str] = total_gb
+                # 如果有日期且行包含流量数据
+                if current_date and ('gib' in line.lower() or 'mib' in line.lower() or 'tib' in line.lower()):
+                    parts = line.split()
+                    for i, part in enumerate(parts):
+                        if i > 0 and 'total' in parts[i-1].lower() and ('gib' in part.lower() or 'mib' in part.lower() or 'tib' in part.lower()):
+                            total_gb = self._parse_size_to_gb(f"{parts[i]} {part}")
+                            daily_usage[current_date] = total_gb
+                            break
             
             return daily_usage
-        
+            
         except Exception as e:
             self.logger.error(f"Error getting daily usage: {e}")
             raise RuntimeError(f"Failed to get daily usage: {e}") from e 
