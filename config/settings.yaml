@@ -31,7 +31,32 @@ email:
 # Monitor settings
 monitor:
   # Check interval in seconds (3600 = 1 hour)
-  check_interval: 3600
+  check_interval: 300
   
   # Network interface to monitor (null = default interface)
-  interface: null 
+  interface: null
+  
+  # Reporting settings
+  reporting:
+    # Send notification on system startup
+    enable_startup_notification: true
+    
+    # Send daily traffic report
+    enable_daily_report: true
+    
+    # Hour to send daily report (0-23)
+    daily_report_hour: 8
+    
+    # Include traffic trend in reports
+    include_traffic_trend: true
+    
+    # Include detailed daily usage
+    include_daily_breakdown: true
+
+# Action settings
+action:
+  # Delay in seconds before shutdown after critical threshold is reached
+  delay_seconds: 60
+  
+  # Whether to force the shutdown
+  force: false 

@@ -5,7 +5,7 @@ import argparse
 import logging
 import sys
 
-from config.settings import load_settings
+from config.settings import load_settings, AppConfig
 from monitors.traffic_monitor import TrafficMonitor
 from notifiers.email_notifier import EmailNotifier
 from actions.shutdown import ShutdownAction
@@ -45,16 +45,17 @@ def main() -> int:
         config = load_settings(args.config)
         
         # Initialize notifier
-        notifier = EmailNotifier(config['email'])
+        notifier = EmailNotifier(config.email)
         
         # Initialize action handler
-        shutdown_action = ShutdownAction()
+        shutdown_action = ShutdownAction(config=config.action)
         
         # Initialize and run traffic monitor
         monitor = TrafficMonitor(
-            threshold_config=config['thresholds'],
+            threshold_config=config.thresholds,
             notifier=notifier,
-            action=shutdown_action
+            action=shutdown_action,
+            monitor_config=config.monitor
         )
         
         # Run the monitoring process

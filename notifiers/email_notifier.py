@@ -8,13 +8,15 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, List, Optional
 
+from config.settings import EmailConfig
+
 
 class EmailNotifier:
     """
     Email notification service for sending alerts.
     """
     
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: EmailConfig) -> None:
         """
         Initialize the email notifier.
         
@@ -23,14 +25,15 @@ class EmailNotifier:
         """
         self.logger = logging.getLogger(__name__)
         
-        # Required configuration
-        self.smtp_server = config.get('smtp_server')
-        self.smtp_port = config.get('smtp_port')
-        self.username = config.get('username')
-        self.password = config.get('password')
-        self.sender = config.get('sender')
-        self.recipients = config.get('recipients', [])
-        self.use_tls = config.get('use_tls', True)
+        # Store configuration
+        self.config = config
+        self.smtp_server = config.smtp_server
+        self.smtp_port = config.smtp_port
+        self.username = config.username
+        self.password = config.password
+        self.sender = config.sender
+        self.recipients = config.recipients
+        self.use_tls = config.use_tls
         
         # Validate required configuration
         if not all([self.smtp_server, self.smtp_port, self.sender, self.recipients]):
@@ -75,10 +78,8 @@ class EmailNotifier:
             'critical': '#F44336'   # Red
         }.get(level.lower(), '#2196F3')
         
-        # 先替换消息中的换行符
+        # 使用三重引号创建HTML内容，避免f-string中的转义问题
         formatted_message = message.replace('\n', '<br>')
-        
-        # 然后在 f-string 中使用已格式化的消息
         html_content = f"""
         <html>
         <head>

@@ -7,6 +7,8 @@ import platform
 import time
 from typing import Optional, List
 
+from config.settings import ActionConfig
+
 
 class ShutdownAction:
     """
@@ -16,17 +18,25 @@ class ShutdownAction:
     on Linux, Windows, and macOS.
     """
     
-    def __init__(self, delay_seconds: int = 60, force: bool = False) -> None:
+    def __init__(self, config: Optional[ActionConfig] = None, delay_seconds: int = 60, force: bool = False) -> None:
         """
         Initialize the shutdown action.
         
         Args:
-            delay_seconds: Delay in seconds before shutdown is executed
-            force: Whether to force the shutdown
+            config: Configuration for shutdown action
+            delay_seconds: Delay in seconds before shutdown is executed (used if config is None)
+            force: Whether to force the shutdown (used if config is None)
         """
         self.logger = logging.getLogger(__name__)
-        self.delay_seconds = delay_seconds
-        self.force = force
+        
+        # Use config if provided, otherwise use parameters
+        if config is not None:
+            self.delay_seconds = config.delay_seconds
+            self.force = config.force
+        else:
+            self.delay_seconds = delay_seconds
+            self.force = force
+            
         self.system = platform.system().lower()
         
         self.logger.info(

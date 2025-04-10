@@ -7,6 +7,9 @@ import re
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 
+from config.settings import MonitorConfig
+
+
 class VnStatDataProvider:
     """
     Data provider that uses vnstat to obtain network traffic information.
@@ -15,16 +18,23 @@ class VnStatDataProvider:
     on the system.
     """
     
-    def __init__(self, interface: Optional[str] = None) -> None:
+    def __init__(self, interface: Optional[str] = None, config: Optional[MonitorConfig] = None) -> None:
         """
         Initialize the VnStat data provider.
         
         Args:
-            interface: Network interface to monitor. If None, the default 
-                      interface from vnstat will be used.
+            interface: Network interface to monitor. If None, the interface from config is used.
+            config: Monitor configuration, can be used instead of direct interface parameter.
         """
         self.logger = logging.getLogger(__name__)
-        self.interface = interface
+        
+        # Use interface parameter or get from config
+        if interface is not None:
+            self.interface = interface
+        elif config is not None:
+            self.interface = config.interface
+        else:
+            self.interface = None
         
         # Verify vnstat is installed
         self._verify_vnstat()
