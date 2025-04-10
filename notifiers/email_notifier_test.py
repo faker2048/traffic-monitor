@@ -1,6 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+Email Notifier Test Module
+
+This module provides functionality to test the email notification system.
+It can be run directly as a script to send a test email using the configured settings.
+
+Usage:
+    python email_notifier_test.py [config_path]
+    
+    If config_path is not provided, it defaults to 'config/settings.yaml'
+"""
+
 import logging
 import os
 import sys
@@ -13,7 +25,7 @@ from notifiers.email_notifier import EmailNotifier
 
 
 def setup_logging():
-    """配置日志输出"""
+    """Configure logging output"""
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
@@ -23,37 +35,37 @@ def setup_logging():
 
 def send_test_email(config_path='config/settings.yaml'):
     """
-    发送测试邮件
+    Send a test email
     
     Args:
-        config_path: 配置文件路径
+        config_path: Path to the configuration file
     
     Returns:
-        发送是否成功
+        Boolean indicating whether sending was successful
     """
     logger = logging.getLogger(__name__)
     
     try:
-        # 从配置文件加载设置
-        logger.info(f"从 {config_path} 加载配置")
+        # Load settings from configuration file
+        logger.info(f"Loading configuration from {config_path}")
         config = load_settings(config_path)
         email_config = config.email
         
-        # 显示有效的邮件配置
-        logger.info(f"SMTP 服务器: {email_config.smtp_server}:{email_config.smtp_port}")
-        logger.info(f"发件人: {email_config.sender}")
-        logger.info(f"收件人: {', '.join(email_config.recipients)}")
-        logger.info(f"使用 TLS: {email_config.use_tls}")
+        # Display effective email configuration
+        logger.info(f"SMTP server: {email_config.smtp_server}:{email_config.smtp_port}")
+        logger.info(f"Sender: {email_config.sender}")
+        logger.info(f"Recipients: {', '.join(email_config.recipients)}")
+        logger.info(f"Using TLS: {email_config.use_tls}")
         
-        # 初始化邮件发送器
-        logger.info("初始化 Email 发送器")
+        # Initialize email sender
+        logger.info("Initializing Email notifier")
         notifier = EmailNotifier(email_config)
         
-        # 发送测试邮件
-        subject = "流量监控系统测试邮件"
-        message = "这是一封来自流量监控系统的测试邮件，用于验证邮件发送功能是否正常工作。"
+        # Send test email
+        subject = "Traffic Monitoring System Test Email"
+        message = "This is a test email from the traffic monitoring system to verify that the email sending functionality is working properly."
         
-        logger.info(f"正在发送测试邮件: '{subject}'")
+        logger.info(f"Sending test email: '{subject}'")
         result = notifier.notify(
             subject=subject,
             message=message,
@@ -61,33 +73,33 @@ def send_test_email(config_path='config/settings.yaml'):
         )
         
         if result:
-            logger.info("✓ 邮件发送成功!")
+            logger.info("✓ Email sent successfully!")
             return True
         else:
-            logger.error("✗ 邮件发送失败")
+            logger.error("✗ Email sending failed")
             return False
             
     except Exception as e:
-        logger.error(f"发生错误: {e}")
+        logger.error(f"An error occurred: {e}")
         return False
 
 
 def main():
-    """主函数入口"""
+    """Main entry point"""
     setup_logging()
     logger = logging.getLogger(__name__)
-    logger.info("启动邮件发送测试程序")
+    logger.info("Starting email sending test program")
     
-    # 确定配置文件路径
+    # Determine configuration file path
     if len(sys.argv) > 1:
         config_path = sys.argv[1]
     else:
         config_path = 'config/settings.yaml'
     
-    # 发送测试邮件
+    # Send test email
     success = send_test_email(config_path)
     
-    # 返回适当的退出码
+    # Return appropriate exit code
     return 0 if success else 1
 
 
