@@ -1,1 +1,3 @@
-pyyaml
+tomli
+tomli-w
+requests
