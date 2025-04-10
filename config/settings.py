@@ -3,14 +3,26 @@
 
 import logging
 import os
-import yaml
+import tomli
+import tomli_w
 from dataclasses import dataclass, field, asdict
 from typing import Dict, Any, Optional, List, Union
 
 
 @dataclass
+class DiscordConfig:
+    """Discord webhook notification configuration."""
+    enabled: bool = False
+    webhook_url: str = "https://discord.com/api/webhooks/your-webhook-url"
+    username: str = "Traffic Monitor"
+    avatar_url: str = "https://example.com/traffic-monitor-icon.png"
+    message_template: str = "**Traffic Alert**: {message}"
+
+
+@dataclass
 class EmailConfig:
     """Email notification configuration."""
+    enabled: bool = True
     smtp_server: str = "smtp.example.com"
     smtp_port: int = 587
     username: str = "your_username"
@@ -18,6 +30,13 @@ class EmailConfig:
     sender: str = "traffic-monitor@example.com"
     recipients: List[str] = field(default_factory=lambda: ["admin@example.com"])
     use_tls: bool = True
+
+
+@dataclass
+class NotifiersConfig:
+    """Configuration for notification methods."""
+    email: EmailConfig = field(default_factory=EmailConfig)
+    discord: DiscordConfig = field(default_factory=DiscordConfig)
 
 
 @dataclass
@@ -57,14 +76,14 @@ class MonitorConfig:
 class AppConfig:
     """Main application configuration."""
     thresholds: ThresholdConfig = field(default_factory=ThresholdConfig)
-    email: EmailConfig = field(default_factory=EmailConfig)
+    notifiers: NotifiersConfig = field(default_factory=NotifiersConfig)
     monitor: MonitorConfig = field(default_factory=MonitorConfig)
     action: ActionConfig = field(default_factory=ActionConfig)
 
 
 def load_settings(config_path: str) -> AppConfig:
     """
-    Load settings from a YAML configuration file into a dataclass.
+    Load settings from a TOML configuration file into a dataclass.
     
     Args:
         config_path: Path to the configuration file
@@ -84,8 +103,8 @@ def load_settings(config_path: str) -> AppConfig:
     
     try:
         logger.info(f"Loading configuration from {config_path}")
-        with open(config_path, 'r') as file:
-            config_dict = yaml.safe_load(file)
+        with open(config_path, 'rb') as file:
+            config_dict = tomli.load(file)
         
         if not isinstance(config_dict, dict):
             logger.error(f"Invalid configuration format")
@@ -103,17 +122,40 @@ def load_settings(config_path: str) -> AppConfig:
                 critical_percentage=thresh_dict.get('critical_percentage', config.thresholds.critical_percentage)
             )
         
-        # Parse email section
-        if 'email' in config_dict and isinstance(config_dict['email'], dict):
-            email_dict = config_dict['email']
-            config.email = EmailConfig(
-                smtp_server=email_dict.get('smtp_server', config.email.smtp_server),
-                smtp_port=email_dict.get('smtp_port', config.email.smtp_port),
-                username=email_dict.get('username', config.email.username),
-                password=email_dict.get('password', config.email.password),
-                sender=email_dict.get('sender', config.email.sender),
-                recipients=email_dict.get('recipients', config.email.recipients),
-                use_tls=email_dict.get('use_tls', config.email.use_tls)
+        # Parse notifiers section
+        if 'notifiers' in config_dict and isinstance(config_dict['notifiers'], dict):
+            notifiers_dict = config_dict['notifiers']
+            
+            # Parse email subsection
+            email_config = config.notifiers.email
+            if 'email' in notifiers_dict and isinstance(notifiers_dict['email'], dict):
+                email_dict = notifiers_dict['email']
+                email_config = EmailConfig(
+                    enabled=email_dict.get('enabled', config.notifiers.email.enabled),
+                    smtp_server=email_dict.get('smtp_server', config.notifiers.email.smtp_server),
+                    smtp_port=email_dict.get('smtp_port', config.notifiers.email.smtp_port),
+                    username=email_dict.get('username', config.notifiers.email.username),
+                    password=email_dict.get('password', config.notifiers.email.password),
+                    sender=email_dict.get('sender', config.notifiers.email.sender),
+                    recipients=email_dict.get('recipients', config.notifiers.email.recipients),
+                    use_tls=email_dict.get('use_tls', config.notifiers.email.use_tls)
+                )
+            
+            # Parse discord subsection
+            discord_config = config.notifiers.discord
+            if 'discord' in notifiers_dict and isinstance(notifiers_dict['discord'], dict):
+                discord_dict = notifiers_dict['discord']
+                discord_config = DiscordConfig(
+                    enabled=discord_dict.get('enabled', config.notifiers.discord.enabled),
+                    webhook_url=discord_dict.get('webhook_url', config.notifiers.discord.webhook_url),
+                    username=discord_dict.get('username', config.notifiers.discord.username),
+                    avatar_url=discord_dict.get('avatar_url', config.notifiers.discord.avatar_url),
+                    message_template=discord_dict.get('message_template', config.notifiers.discord.message_template)
+                )
+            
+            config.notifiers = NotifiersConfig(
+                email=email_config,
+                discord=discord_config
             )
         
         # Parse monitor section
@@ -154,9 +196,9 @@ def load_settings(config_path: str) -> AppConfig:
         logger.debug(f"Loaded configuration: {config}")
         return config
         
-    except yaml.YAMLError as e:
-        logger.error(f"Error parsing YAML configuration: {e}")
-        raise ValueError(f"Invalid YAML in configuration file: {e}")
+    except tomli.TOMLDecodeError as e:
+        logger.error(f"Error parsing TOML configuration: {e}")
+        raise ValueError(f"Invalid TOML in configuration file: {e}")
     
     except Exception as e:
         logger.error(f"Error loading configuration: {e}")
@@ -165,7 +207,7 @@ def load_settings(config_path: str) -> AppConfig:
 
 def save_settings(config: AppConfig, output_path: str) -> None:
     """
-    Save application configuration to a YAML file.
+    Save application configuration to a TOML file.
     
     Args:
         config: AppConfig object to save
@@ -181,8 +223,8 @@ def save_settings(config: AppConfig, output_path: str) -> None:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
         # Write the configuration to file
-        with open(output_path, 'w') as file:
-            yaml.dump(config_dict, file, default_flow_style=False)
+        with open(output_path, 'wb') as file:
+            tomli_w.dump(config_dict, file)
         
         logger.info(f"Saved configuration to {output_path}")
         
@@ -212,4 +254,4 @@ def create_default_config(output_path: str) -> None:
 if __name__ == "__main__":
     # If run directly, create a default configuration
     logging.basicConfig(level=logging.INFO)
-    create_default_config('config/settings.yaml') 
+    create_default_config('config/settings.toml') 

@@ -1,0 +1,44 @@
+# Traffic Monitor Configuration
+
+# Threshold settings
+[thresholds]
+total_limit = 2000          # Total traffic limit in GB (2TB = 2000GB)
+interval = 100              # Alert interval in GB (alerts will be sent at 100GB, 200GB, etc.)
+critical_percentage = 90    # Critical threshold as a percentage of total limit (90% = 1800GB)
+
+# Email notification settings
+[notifiers.email]
+enabled = true              # Whether to enable email notifications
+smtp_server = "smtp.example.com"    # SMTP server settings
+smtp_port = 587             # Port for SMTP connection
+username = "your_username"  # SMTP username
+password = "your_password"  # SMTP password
+sender = "traffic-monitor@example.com"    # Email sender address
+recipients = ["admin@example.com", "alerts@example.com"]    # Email recipients list
+use_tls = true              # Whether to use TLS for SMTP connection
+
+# Discord webhook notification settings
+[notifiers.discord]
+enabled = false             # Whether to enable Discord notifications
+webhook_url = "https://discord.com/api/webhooks/your-webhook-url"    # Discord webhook URL
+username = "Traffic Monitor"    # Username to display for the webhook messages
+avatar_url = "https://example.com/traffic-monitor-icon.png"    # Avatar URL for the webhook messages
+message_template = "**Traffic Alert**: {message}"    # Message format template
+
+# Monitor settings
+[monitor]
+check_interval = 300        # Check interval in seconds (300 = 5 minutes)
+interface = ""              # Network interface to monitor (empty = default interface)
+
+# Reporting settings
+[monitor.reporting]
+enable_startup_notification = true    # Send notification on system startup
+enable_daily_report = true            # Send daily traffic report
+daily_report_hour = 8                 # Hour to send daily report (0-23)
+include_traffic_trend = true          # Include traffic trend in reports
+include_daily_breakdown = true        # Include detailed daily usage
+
+# Action settings
+[action]
+delay_seconds = 60          # Delay in seconds before shutdown after critical threshold is reached
+force = false               # Whether to force the shutdown 
