@@ -57,11 +57,11 @@ class ActionConfig:
 @dataclass
 class ReportConfig:
     """Configuration for traffic reports."""
-    enable_startup_notification: bool = True  # 启动时发送通知
-    enable_daily_report: bool = True  # 每日发送流量报告
-    daily_report_hour: int = 8  # 每日报告发送时间(小时，0-23)
-    include_traffic_trend: bool = True  # 包含流量趋势
-    include_daily_breakdown: bool = True  # 包含每日详细流量
+    enable_startup_notification: bool = True  
+    enable_daily_report: bool = True
+    daily_report_hour: int = 8
+    include_traffic_trend: bool = True
+    include_daily_breakdown: bool = True
 
 
 @dataclass

@@ -19,11 +19,12 @@ use_tls = true              # Whether to use TLS for SMTP connection
 
 # Discord webhook notification settings
 [notifiers.discord]
-enabled = false             # Whether to enable Discord notifications
-webhook_url = "https://discord.com/api/webhooks/your-webhook-url"    # Discord webhook URL
+enabled = true             # Whether to enable Discord notifications
+# To get a webhook URL: Server Settings -> Integrations -> Webhooks -> New Webhook -> Copy Webhook URL
+webhook_url = ""    # Discord webhook URL
 username = "Traffic Monitor"    # Username to display for the webhook messages
 avatar_url = "https://example.com/traffic-monitor-icon.png"    # Avatar URL for the webhook messages
-message_template = "**Traffic Alert**: {message}"    # Message format template
+message_template = "{level_emoji} **Traffic Alert** {traffic_emoji}\n\n{message}\n\n{status_emoji} Status as of {time}"    # Message format template
 
 # Monitor settings
 [monitor]

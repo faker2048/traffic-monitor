@@ -34,6 +34,13 @@ def parse_arguments():
     parser.add_argument('--log-level', type=str, default='INFO',
                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                       help='Set the logging level')
+    parser.add_argument('--webhook-url', type=str,
+                      help='Override webhook URL for testing')
+    parser.add_argument('--force', action='store_true',
+                      help='Force sending even if Discord is disabled in config')
+    parser.add_argument('--level', type=str, default='info',
+                       choices=['info', 'warning', 'critical'],
+                       help='Notification level to test')
     return parser.parse_args()
 
 
@@ -60,7 +67,17 @@ def main():
         
         # Check if Discord notifications are enabled
         if not discord_config.enabled:
-            logger.warning("Discord notifications are disabled in the configuration. Testing anyway.")
+            if args.force:
+                logger.warning("Discord notifications are disabled in the configuration. Forcing enabled for test.")
+                discord_config.enabled = True
+            else:
+                logger.error("Discord notifications are disabled in the configuration. Use --force to test anyway.")
+                return 1
+                
+        # Override webhook URL if provided
+        if args.webhook_url:
+            logger.info(f"Overriding webhook URL with provided value")
+            discord_config.webhook_url = args.webhook_url
         
         # Initialize Discord notifier
         logger.info("Initializing Discord notifier")
@@ -68,32 +85,50 @@ def main():
         
         # Generate test message
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        subject = f"Discord Notification Test - {current_time}"
-        message = f"""这是一条测试消息，用于验证Discord webhook通知功能。
+        level = args.level
+        
+        # Emoji prefixes based on level
+        emoji_prefix = "ℹ️" if level == "info" else "⚠️" if level == "warning" else "🚨"
+        
+        subject = f"Traffic Monitor Test - {current_time}"
+        message = f"""✨ This is a test message to verify Discord webhook notification functionality! ✨
 
-当前时间：{current_time}
-这是一个信息级别的通知。
+🚦 **Traffic Monitor Status Report**:
+- Current traffic usage: 850GB/2000GB (42.5%)
+- Daily average: 28.33GB/day
+- Threshold limit: 100GB intervals
+- Next threshold: 900GB (in 50GB)
 
-测试信息体：
-- 这是一个测试项目
-- 仅用于验证Discord通知功能是否正常
-- 请勿回复
+⏱️ **Test Information**:
+- Current time: {current_time}
+- This is a {level.upper()} level notification
+- Notification level: {emoji_prefix} {level.upper()}
 
-如果您收到此消息，则说明Discord webhook配置正确。"""
+📊 **Recent Traffic Trend**:
+- Yesterday: 25GB
+- Today: 35GB (trending up)
+- Estimated month-end: 1250GB
+
+🔍 **Test Purpose**:
+- Verifying Discord notification feature
+- Testing emoji rendering
+- Checking message formatting
+
+If you receive this message, your Discord webhook configuration is working correctly! 🎉"""
         
         # Send the test message
-        logger.info("Sending test notification")
+        logger.info(f"Sending test {level} notification")
         result = notifier.notify(
             subject=subject,
             message=message,
-            level="info"
+            level=level
         )
         
         if result:
-            logger.info("Test notification sent successfully")
+            logger.info("Test notification sent successfully! 🎉")
             return 0
         else:
-            logger.error("Failed to send test notification")
+            logger.error("Failed to send test notification. Check the webhook URL in your config. ❌")
             return 1
             
     except Exception as e:
