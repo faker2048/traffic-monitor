@@ -20,7 +20,7 @@ A Python application that monitors network traffic usage (using vnstat), sends s
 
 1. Clone this repository:
    ```
-   git clone https://github.com/yourusername/traffic-monitor.git
+   git clone https://github.com/faker2048/traffic-monitor.git
    cd traffic-monitor
    ```
 
