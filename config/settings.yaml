@@ -1,0 +1,37 @@
+# Traffic Monitor Configuration
+
+# Threshold settings
+thresholds:
+  # Total traffic limit in GB (2TB = 2000GB)
+  total_limit: 2000
+  
+  # Alert interval in GB (alerts will be sent at 100GB, 200GB, etc.)
+  interval: 100
+  
+  # Critical threshold as a percentage of total limit (90% = 1800GB)
+  critical_percentage: 90
+
+# Email notification settings
+email:
+  # SMTP server settings
+  smtp_server: smtp.example.com
+  smtp_port: 587
+  username: your_username
+  password: your_password
+  
+  # Sender and recipients
+  sender: traffic-monitor@example.com
+  recipients:
+    - admin@example.com
+    - alerts@example.com
+  
+  # Whether to use TLS for SMTP connection
+  use_tls: true
+
+# Monitor settings
+monitor:
+  # Check interval in seconds (3600 = 1 hour)
+  check_interval: 3600
+  
+  # Network interface to monitor (null = default interface)
+  interface: null 
