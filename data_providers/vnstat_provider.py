@@ -133,45 +133,47 @@ class VnStatDataProvider:
         try:
             # 获取月度数据输出
             output = self._run_vnstat_command(["-m"])
+            self.logger.debug(f"vnstat -m 输出:\n{output}")
             
             # 当前月份标识
             current_month = datetime.now().strftime("%Y-%m")
-            month_abbr = datetime.now().strftime("%b").lower()
             
-            lines = output.strip().split('\n')
+            # 查找当前月行及其total数据
+            # 使用正则表达式匹配形如 "2025-04     51.47 GiB |   50.73 GiB |  102.20 GiB" 的行
+            month_pattern = re.compile(
+                r'(\d{4}-\d{2})\s+(\d+\.\d+)\s+(\w+)\s+\|\s+(\d+\.\d+)\s+(\w+)\s+\|\s+(\d+\.\d+)\s+(\w+)',
+                re.IGNORECASE
+            )
             
-            # 查找包含当前月份的行
-            month_line = None
-            for i, line in enumerate(lines):
-                if current_month in line.lower() or month_abbr in line.lower():
-                    month_line = line
-                    # 查找total数据行（通常在月份行之后几行）
-                    for j in range(i, min(i+5, len(lines))):
-                        if "total" in lines[j].lower() and "|" in lines[j]:
-                            # 使用正则表达式匹配total列的数据
-                            match = re.search(r'total\s*\|\s*([\d.]+)\s+(\w+)', lines[j], re.IGNORECASE)
-                            if match:
-                                size_str = f"{match.group(1)} {match.group(2)}"
-                                return self._parse_size_to_gb(size_str)
+            for line in output.split('\n'):
+                # 检查是否包含当前月份
+                if current_month in line:
+                    match = month_pattern.search(line)
+                    if match:
+                        # 提取total数据（第6,7组是总量和单位）
+                        total_value = float(match.group(6))
+                        total_unit = match.group(7)
+                        size_str = f"{total_value} {total_unit}"
+                        total_gb = self._parse_size_to_gb(size_str)
+                        self.logger.debug(f"找到当前月份({current_month})的流量: {total_gb}GB")
+                        return total_gb
             
-            # 如果找不到明确的total列，尝试直接从月份行解析
-            if month_line:
-                # 使用更精确的正则表达式匹配标准vnstat输出格式中的total部分
-                total_pattern = re.compile(r'\|\s*([\d.]+)\s+(\w+)\s*\|', re.IGNORECASE)
-                matches = total_pattern.findall(month_line)
-                
-                # 通常第三个匹配结果是total（第一个是rx，第二个是tx）
-                if len(matches) >= 3:
-                    size_str = f"{matches[2][0]} {matches[2][1]}"
-                    return self._parse_size_to_gb(size_str)
-            
-            # 备用方法：解析示例中显示的格式
-            total_pattern = re.compile(r'total\s*\|\s*([\d.]+)\s+(\w+)', re.IGNORECASE)
+            # 如果没有找到精确的当前月份，尝试找出最后一个非estimated的月份数据
+            lines = output.split('\n')
             for line in lines:
-                match = total_pattern.search(line)
+                # 跳过包含"estimated"的行
+                if "estimated" in line.lower():
+                    continue
+                    
+                match = month_pattern.search(line)
                 if match:
-                    size_str = f"{match.group(1)} {match.group(2)}"
-                    return self._parse_size_to_gb(size_str)
+                    # 提取total数据
+                    total_value = float(match.group(6))
+                    total_unit = match.group(7)
+                    size_str = f"{total_value} {total_unit}"
+                    total_gb = self._parse_size_to_gb(size_str)
+                    self.logger.debug(f"找到最近月份({match.group(1)})的流量: {total_gb}GB")
+                    return total_gb
             
             self.logger.warning("未能找到当前月份的流量数据")
             return 0.0
@@ -194,19 +196,21 @@ class VnStatDataProvider:
             # 获取日数据输出
             output = self._run_vnstat_command(["-d"])
             
-            lines = output.strip().split('\n')
             daily_usage = {}
             
-            # 查找日期和对应的流量
-            date_pattern = re.compile(r'(\d{2}/\d{2}/\d{2}|\d{4}-\d{2}-\d{2}|yesterday|today)')
+            # 使用正则表达式匹配日期和流量数据
+            # 匹配形如 "2025-04-11    4.83 GiB |    4.76 GiB |    9.59 GiB"
+            day_pattern = re.compile(
+                r'((?:\d{4}-\d{2}-\d{2})|(?:today|yesterday))\s+(\d+\.\d+)\s+(\w+)\s+\|\s+(\d+\.\d+)\s+(\w+)\s+\|\s+(\d+\.\d+)\s+(\w+)',
+                re.IGNORECASE
+            )
             
-            for i, line in enumerate(lines):
-                date_match = date_pattern.search(line.lower())
-                if not date_match:
+            for line in output.split('\n'):
+                match = day_pattern.search(line)
+                if not match:
                     continue
-                    
-                date_str = date_match.group(1)
                 
+                date_str = match.group(1).lower()
                 # 处理特殊日期
                 if date_str == 'today':
                     date_str = datetime.now().strftime("%Y-%m-%d")
@@ -215,20 +219,13 @@ class VnStatDataProvider:
                     yesterday = yesterday.replace(day=yesterday.day-1)
                     date_str = yesterday.strftime("%Y-%m-%d")
                 
-                # 查找与该日期相关的total数据
-                total_gb = 0.0
+                # 提取total数据
+                total_value = float(match.group(6))
+                total_unit = match.group(7)
+                size_str = f"{total_value} {total_unit}"
+                total_gb = self._parse_size_to_gb(size_str)
                 
-                # 检查当前行和下一行是否包含total数据
-                for j in range(i, min(i+3, len(lines))):
-                    if "total" in lines[j].lower():
-                        total_match = re.search(r'total\s*([\d.]+)\s+(\w+)', lines[j], re.IGNORECASE)
-                        if total_match:
-                            size_str = f"{total_match.group(1)} {total_match.group(2)}"
-                            total_gb = self._parse_size_to_gb(size_str)
-                            break
-                
-                if total_gb > 0.0:
-                    daily_usage[date_str] = total_gb
+                daily_usage[date_str] = total_gb
             
             return daily_usage
             
