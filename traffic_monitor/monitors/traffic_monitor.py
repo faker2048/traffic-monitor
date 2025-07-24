@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from ..data_providers.vnstat_provider import VnStatDataProvider
 from ..config.settings import ThresholdConfig, MonitorConfig
+from ..state_manager import StateManager
 
 
 class Notifier(Protocol):
@@ -59,6 +60,9 @@ class TrafficMonitor:
         # Initialize the data provider (default is VnStat)
         self.data_provider = data_provider or VnStatDataProvider(config=self.monitor_config)
         
+        # Initialize state manager for persistent notification tracking
+        self.state_manager = StateManager()
+        
         # Set up thresholds from configuration
         self.total_limit = threshold_config.total_limit  # in GB
         self.interval = threshold_config.interval  # in GB
@@ -74,11 +78,6 @@ class TrafficMonitor:
         self.daily_report_hour = self.monitor_config.reporting.daily_report_hour
         self.include_traffic_trend = self.monitor_config.reporting.include_traffic_trend
         self.include_daily_breakdown = self.monitor_config.reporting.include_daily_breakdown
-        self.last_daily_report_date = None  # Date of last daily report sent
-        
-        # Initialize tracking of sent notifications
-        self.notified_thresholds: List[int] = []
-        self.critical_notification_sent = False
         
         self.logger.info(
             f"Initialized TrafficMonitor with total limit: {self.total_limit}GB, "
@@ -92,10 +91,13 @@ class TrafficMonitor:
         Returns:
             The threshold that triggered the notification or None
         """
+        # Get already notified thresholds from persistent state
+        notified_thresholds = self.state_manager.get_notified_thresholds()
+        
         # Check if we've exceeded a new interval threshold
         for i in range(1, int(self.total_limit / self.interval) + 1):
             threshold = i * self.interval
-            if current_usage >= threshold and threshold not in self.notified_thresholds:
+            if current_usage >= threshold and threshold not in notified_thresholds:
                 return threshold
         return None
 
@@ -317,7 +319,8 @@ Month-End Estimate: {estimated_end_of_month:.2f}GB
             today = now.date()
             
             # Check if a daily report has already been sent today
-            if self.last_daily_report_date == today:
+            last_report_date_str = self.state_manager.get_last_daily_report_date()
+            if last_report_date_str == today.isoformat():
                 return
                 
             # Check if it's time to send the daily report
@@ -341,7 +344,7 @@ Month-End Estimate: {estimated_end_of_month:.2f}GB
                 self.notifier.notify(subject, daily_report, level)
                 
                 # Update the date of the last daily report sent
-                self.last_daily_report_date = today
+                self.state_manager.set_last_daily_report_date(today.isoformat())
                 
                 self.logger.info(f"Daily traffic report for {today} sent")
         
@@ -358,9 +361,12 @@ Month-End Estimate: {estimated_end_of_month:.2f}GB
             # Check if we need to send a daily report
             self.send_daily_report()
             
-            # Check if we've reached a new notification threshold
-            threshold = self._should_notify(current_usage)
-            if threshold:
+            # Check for all thresholds that need notification
+            while True:
+                threshold = self._should_notify(current_usage)
+                if not threshold:
+                    break
+                    
                 self.logger.info(f"Threshold reached: {threshold}GB")
                 subject = f"Traffic Alert: {threshold}GB threshold reached"
                 message = (
@@ -369,10 +375,10 @@ Month-End Estimate: {estimated_end_of_month:.2f}GB
                     f"Current usage: {current_usage:.2f}GB."
                 )
                 self.notifier.notify(subject, message, "warning")
-                self.notified_thresholds.append(threshold)
+                self.state_manager.add_notified_threshold(threshold)
             
             # Check if we've reached the critical threshold
-            if self._is_critical(current_usage) and not self.critical_notification_sent:
+            if self._is_critical(current_usage) and not self.state_manager.is_critical_notification_sent():
                 self.logger.critical(
                     f"Critical threshold reached: {current_usage:.2f}GB "
                     f"exceeds {self.critical_threshold}GB"
@@ -385,7 +391,7 @@ Month-End Estimate: {estimated_end_of_month:.2f}GB
                     f"The system will now shutdown to prevent exceeding your limit."
                 )
                 self.notifier.notify(subject, message, "critical")
-                self.critical_notification_sent = True
+                self.state_manager.set_critical_notification_sent(True)
                 
                 # Execute the shutdown action
                 self.logger.critical("Executing shutdown action")

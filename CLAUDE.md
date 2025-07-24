@@ -65,6 +65,12 @@ uvx traffic-monitor status
 # Show configuration
 uvx traffic-monitor config-show
 
+# Show notification state (what thresholds have been notified)
+uvx traffic-monitor state
+
+# Reset notification state (for testing or new month)
+uvx traffic-monitor reset-state
+
 # Service management help
 uvx traffic-monitor service
 ```
@@ -105,6 +111,7 @@ brew install vnstat       # macOS
 - Implements Protocol-based design for `Notifier` and `Action` interfaces
 - Handles startup notifications, daily reports, and threshold-based alerts
 - Supports traffic trend analysis and usage estimation
+- Uses persistent state management to prevent duplicate notifications after restarts
 
 **Data Provider** (`data_providers/vnstat_provider.py`):
 - Abstracts vnstat system interaction
@@ -125,6 +132,12 @@ brew install vnstat       # macOS
 **Action System** (`actions/shutdown.py`):
 - Handles critical threshold responses (system shutdown)
 - Configurable delay and force options
+
+**State Manager** (`state_manager.py`):
+- Manages persistent storage of notification states in `~/.config/traffic-monitor/state.json`
+- Prevents duplicate notifications after service restarts
+- Automatically resets state for new months
+- Tracks notified thresholds, critical notifications, and daily report status
 
 ### Key Design Patterns
 

@@ -341,6 +341,46 @@ def config_show(config):
         sys.exit(1)
 
 
+@cli.command()
+def state():
+    """Show current notification state."""
+    try:
+        from .state_manager import StateManager
+        
+        state_manager = StateManager()
+        state_summary = state_manager.get_state_summary()
+        
+        click.echo("📊 Traffic Monitor State")
+        click.echo(f"   State file: {state_summary['state_file']}")
+        click.echo(f"   Current month: {state_summary['current_month']}")
+        click.echo(f"   Notified thresholds: {state_summary['notified_thresholds']}")
+        click.echo(f"   Critical notification sent: {state_summary['critical_notification_sent']}")
+        click.echo(f"   Last daily report: {state_summary['last_daily_report_date']}")
+        click.echo(f"   Last updated: {state_summary['last_updated']}")
+        
+    except Exception as e:
+        click.echo(f"❌ Error getting state: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+def reset_state():
+    """Reset notification state (useful for testing or new month)."""
+    try:
+        from .state_manager import StateManager
+        
+        click.confirm("Are you sure you want to reset the notification state?", abort=True)
+        
+        state_manager = StateManager()
+        state_manager.reset_monthly_state()
+        
+        click.echo("✅ Notification state has been reset.")
+        
+    except Exception as e:
+        click.echo(f"❌ Error resetting state: {e}", err=True)
+        sys.exit(1)
+
+
 def main():
     """Main entry point for the CLI."""
     cli()
