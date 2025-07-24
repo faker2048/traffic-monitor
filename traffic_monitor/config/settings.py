@@ -219,6 +219,17 @@ def save_settings(config: AppConfig, output_path: str) -> None:
         # Convert dataclass to dictionary
         config_dict = asdict(config)
         
+        # Remove None values that can't be serialized to TOML
+        def clean_none_values(d):
+            if isinstance(d, dict):
+                return {k: clean_none_values(v) for k, v in d.items() if v is not None}
+            elif isinstance(d, list):
+                return [clean_none_values(item) for item in d if item is not None]
+            else:
+                return d
+        
+        config_dict = clean_none_values(config_dict)
+        
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         

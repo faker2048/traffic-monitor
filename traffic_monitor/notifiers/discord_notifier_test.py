@@ -22,8 +22,8 @@ from datetime import datetime
 # Add parent directory to path to allow imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from notifiers.discord_notifier import DiscordNotifier
-from config.settings import load_settings
+from .discord_notifier import DiscordNotifier
+from ..config.settings import load_settings
 
 
 def parse_arguments():

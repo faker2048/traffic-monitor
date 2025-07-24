@@ -23,29 +23,95 @@ A Python application that monitors network traffic usage (using vnstat) for vari
 
 ## Installation
 
-1. Clone and install:
-   ```
-   git clone https://github.com/faker2048/traffic-monitor.git
-   cd traffic-monitor
-   pip install -r requirements.txt
+### Quick Start with uvx (Recommended)
+
+1. Install vnstat (system dependency):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt install vnstat
+   
+   # CentOS/RHEL
+   sudo yum install vnstat
+   
+   # macOS
+   brew install vnstat
    ```
 
-2. Install vnstat:
-   - Ubuntu/Debian: `sudo apt install vnstat`
-   - CentOS/RHEL: `sudo yum install vnstat`
-   - macOS: `brew install vnstat`
-   - Windows: Requires WSL
-
-3. Configure vnstat:
-   ```
+2. Configure vnstat:
+   ```bash
    sudo vnstat -u -i YOUR_INTERFACE
    sudo systemctl enable vnstat
    sudo systemctl start vnstat
    ```
 
+3. Run with Discord webhook:
+   ```bash
+   uvx traffic-monitor run --discord <YOUR_DISCORD_WEBHOOK_URL>
+   ```
+
+4. Install as system service (auto-start on boot):
+   ```bash
+   sudo uvx traffic-monitor run --discord <YOUR_DISCORD_WEBHOOK_URL> --install
+   ```
+
+### Traditional Installation
+
+1. Clone and install:
+   ```bash
+   git clone https://github.com/faker2048/traffic-monitor.git
+   cd traffic-monitor
+   pip install -e .
+   ```
+
+2. Run:
+   ```bash
+   traffic-monitor run --discord <YOUR_DISCORD_WEBHOOK_URL>
+   ```
+
+## Usage
+
+### Command Line Options
+
+```bash
+# Run with Discord notifications
+uvx traffic-monitor run --discord <webhook_url>
+
+# Run with email notifications
+uvx traffic-monitor run --email-server smtp.gmail.com --email-user user@gmail.com --email-pass password
+
+# Customize thresholds
+uvx traffic-monitor run --discord <webhook_url> --limit 1000 --interval 50 --critical 85
+
+# Install as system service
+sudo uvx traffic-monitor run --discord <webhook_url> --install
+
+# Check current status
+uvx traffic-monitor status
+
+# View configuration
+uvx traffic-monitor config-show
+```
+
+### Service Management
+
+```bash
+# Check service status
+sudo systemctl status traffic-monitor
+
+# View logs
+sudo journalctl -u traffic-monitor -f
+
+# Stop/start service
+sudo systemctl stop traffic-monitor
+sudo systemctl start traffic-monitor
+
+# Uninstall service
+sudo uvx traffic-monitor uninstall
+```
+
 ## Configuration
 
-Edit `config/settings.toml`:
+Configuration is automatically created when you first run the application. You can also manually edit `~/.config/traffic-monitor/settings.toml`:
 
 ```toml
 [thresholds]
@@ -70,7 +136,6 @@ username = "Traffic Monitor"
 
 [monitor]
 check_interval = 300        # Check interval in seconds
-interface = ""              # Network interface (empty = default)
 
 [monitor.reporting]
 enable_startup_notification = true
@@ -82,40 +147,13 @@ delay_seconds = 60
 force = false
 ```
 
-## Usage
+## Getting Discord Webhook URL
 
-Run the monitor:
-
-```
-python main.py [--config PATH] [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}]
-```
-
-## Service Setup (Linux)
-
-Create `/etc/systemd/system/traffic-monitor.service`:
-
-```
-[Unit]
-Description=Traffic Monitor Service
-After=network.target
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/path/to/traffic-monitor
-ExecStart=/usr/bin/python3 /path/to/traffic-monitor/main.py
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Then:
-```
-sudo systemctl enable traffic-monitor
-sudo systemctl start traffic-monitor
-```
+1. Go to your Discord server
+2. Server Settings → Integrations → Webhooks
+3. Create New Webhook
+4. Copy the Webhook URL
+5. Use it with `--discord <webhook_url>`
 
 ## License
 

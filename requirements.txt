@@ -1,3 +1,4 @@
-tomli
-tomli-w
-requests
+tomli>=2.0.0
+tomli-w>=1.0.0
+requests>=2.25.0
+click>=8.0.0

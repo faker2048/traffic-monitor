@@ -16,7 +16,7 @@ logging.basicConfig(
 
 # 导入VnStatDataProvider
 sys.path.append('.')
-from data_providers.vnstat_provider import VnStatDataProvider
+from .vnstat_provider import VnStatDataProvider
 
 # vnstat -m 的标准输出样例（基于实际系统输出）
 VNSTAT_MONTHLY_SAMPLE = """

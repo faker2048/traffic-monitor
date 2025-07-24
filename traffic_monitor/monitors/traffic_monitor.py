@@ -6,8 +6,8 @@ from typing import Dict, Any, List, Optional, Callable, Protocol
 import time
 from datetime import datetime, timedelta
 
-from data_providers.vnstat_provider import VnStatDataProvider
-from config.settings import ThresholdConfig, MonitorConfig
+from ..data_providers.vnstat_provider import VnStatDataProvider
+from ..config.settings import ThresholdConfig, MonitorConfig
 
 
 class Notifier(Protocol):

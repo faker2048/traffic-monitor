@@ -5,11 +5,11 @@ import argparse
 import logging
 import sys
 
-from config.settings import load_settings, AppConfig
-from monitors.traffic_monitor import TrafficMonitor
-from notifiers.email_notifier import EmailNotifier
-from notifiers.discord_notifier import DiscordNotifier
-from actions.shutdown import ShutdownAction
+from .config.settings import load_settings, AppConfig
+from .monitors.traffic_monitor import TrafficMonitor
+from .notifiers.email_notifier import EmailNotifier
+from .notifiers.discord_notifier import DiscordNotifier
+from .actions.shutdown import ShutdownAction
 
 
 class MultiNotifier:

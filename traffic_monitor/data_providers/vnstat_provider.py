@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 from typing import Dict, Optional, List
 
-from config.settings import MonitorConfig
+from ..config.settings import MonitorConfig
 
 
 class VnStatDataProvider:

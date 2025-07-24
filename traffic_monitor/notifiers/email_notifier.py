@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, List, Optional
 
-from config.settings import EmailConfig
+from ..config.settings import EmailConfig
 
 
 class EmailNotifier:

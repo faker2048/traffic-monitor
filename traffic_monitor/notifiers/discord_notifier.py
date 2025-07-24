@@ -7,7 +7,7 @@ import requests
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from config.settings import DiscordConfig
+from ..config.settings import DiscordConfig
 
 
 class DiscordNotifier:

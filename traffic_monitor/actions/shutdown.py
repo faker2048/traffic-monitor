@@ -7,7 +7,7 @@ import platform
 import time
 from typing import Optional, List
 
-from config.settings import ActionConfig
+from ..config.settings import ActionConfig
 
 
 class ShutdownAction:

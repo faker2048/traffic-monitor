@@ -20,8 +20,8 @@ import sys
 # Make sure parent directory is in path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config.settings import load_settings, EmailConfig
-from notifiers.email_notifier import EmailNotifier
+from ..config.settings import load_settings, EmailConfig
+from .email_notifier import EmailNotifier
 
 
 def setup_logging():
