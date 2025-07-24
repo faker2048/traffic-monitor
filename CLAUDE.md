@@ -5,22 +5,40 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Installation and Usage
-```bash
-# Install and run with Discord webhook (using uvx)
-uvx traffic-monitor run --discord <discord_webhook_url>
 
-# Install as system service with auto-start
-sudo uvx traffic-monitor run --discord <discord_webhook_url> --install
+#### Remote from GitHub (Recommended)
+```bash
+# Direct run from GitHub with full example
+uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
+  --discord https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN \
+  --limit 2048 \
+  --interval 100 \
+  --critical 90
+
+# Install as system service from GitHub
+sudo uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
+  --discord <webhook_url> \
+  --limit 2048 \
+  --install
+
+# Check status from GitHub
+uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor status
+```
+
+#### Local Installation
+```bash
+# Install locally and run
+pip install -e .
+traffic-monitor run --discord <webhook_url> --limit 2048
+
+# Install as system service locally
+sudo traffic-monitor run --discord <webhook_url> --install
 
 # Run with email notifications
-uvx traffic-monitor run --email-server smtp.gmail.com --email-user user@gmail.com --email-pass password
+traffic-monitor run --email-server smtp.gmail.com --email-user user@gmail.com --email-pass password
 
 # Run with custom configuration
-uvx traffic-monitor run --config /path/to/config.toml
-
-# Install from local development
-pip install -e .
-traffic-monitor run --discord <webhook_url>
+traffic-monitor run --config /path/to/config.toml
 ```
 
 ### Service Management
