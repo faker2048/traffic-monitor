@@ -67,7 +67,7 @@ class ReportConfig:
 @dataclass
 class MonitorConfig:
     """Configuration for monitoring behavior."""
-    check_interval: int = 3600  # Check every hour
+    check_interval: int = 300  # Check every hour
     interface: Optional[str] = None  # Default interface
     reporting: ReportConfig = field(default_factory=ReportConfig)  # 报告设置
 
