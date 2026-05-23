@@ -1,7 +1,6 @@
 use std::process::Command;
 use std::collections::HashMap;
-use log::{debug, error, warn};
-use regex::Regex;
+use log::{debug, error};
 use chrono::Local;
 use serde::Deserialize;
 
@@ -103,40 +102,6 @@ impl VnStatDataProvider {
         }
 
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    }
-
-    #[allow(dead_code)]
-    pub fn parse_size_to_gb(&self, size_str: &str) -> f64 {
-        // Parse size string e.g. "10.5 GiB" or "800 MiB"
-        let re = match Regex::new(r"([\d.]+)\s+(\w+)") {
-            Ok(r) => r,
-            Err(e) => {
-                error!("Failed to compile regex: {}", e);
-                return 0.0;
-            }
-        };
-
-        if let Some(caps) = re.captures(size_str) {
-            let val_str = caps.get(1).map_or("0.0", |m| m.as_str());
-            let unit = caps.get(2).map_or("", |m| m.as_str()).to_lowercase();
-
-            let val: f64 = val_str.parse().unwrap_or(0.0);
-            if unit.contains("gib") {
-                val
-            } else if unit.contains("mib") {
-                val / 1024.0
-            } else if unit.contains("kib") {
-                val / (1024.0 * 1024.0)
-            } else if unit.contains("tib") {
-                val * 1024.0
-            } else {
-                warn!("Unknown unit in size string: {}", size_str);
-                val
-            }
-        } else {
-            warn!("Failed to parse size string: {}", size_str);
-            0.0
-        }
     }
 
     pub fn get_current_month_usage(&self) -> Result<f64, Box<dyn std::error::Error>> {
@@ -245,16 +210,6 @@ impl VnStatDataProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_parse_size_to_gb() {
-        let provider = VnStatDataProvider { interface: None };
-        assert_eq!(provider.parse_size_to_gb("10.5 GiB"), 10.5);
-        assert_eq!(provider.parse_size_to_gb("800 MiB"), 800.0 / 1024.0);
-        assert_eq!(provider.parse_size_to_gb("1024 KiB"), 1024.0 / (1024.0 * 1024.0));
-        assert_eq!(provider.parse_size_to_gb("2.5 TiB"), 2.5 * 1024.0);
-        assert_eq!(provider.parse_size_to_gb("0 GiB"), 0.0);
-    }
 
     #[test]
     fn test_parse_monthly_usage() {

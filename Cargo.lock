@@ -952,7 +952,6 @@ dependencies = [
  "env_logger",
  "lettre",
  "log",
- "regex",
  "serde",
  "serde_json",
  "toml",
