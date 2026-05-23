@@ -105,6 +105,7 @@ impl VnStatDataProvider {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 
+    #[allow(dead_code)]
     pub fn parse_size_to_gb(&self, size_str: &str) -> f64 {
         // Parse size string e.g. "10.5 GiB" or "800 MiB"
         let re = match Regex::new(r"([\d.]+)\s+(\w+)") {
@@ -266,8 +267,8 @@ mod tests {
                         "month": [
                             {
                                 "date": { "year": 2025, "month": 4 },
-                                "rx": 55269785067,
-                                "tx": 54469785068
+                                "rx": 55268207206,
+                                "tx": 54468207207
                             }
                         ]
                     }
@@ -290,13 +291,13 @@ mod tests {
                         "day": [
                             {
                                 "date": { "year": 2025, "month": 4, "day": 11 },
-                                "rx": 5186162688,
-                                "tx": 5111426580
+                                "rx": 5148592046,
+                                "tx": 5148592046
                             },
                             {
                                 "date": { "year": 2025, "month": 4, "day": 12 },
-                                "rx": 4477542400,
-                                "tx": 4413148709
+                                "rx": 4445291151,
+                                "tx": 4445291152
                             }
                         ]
                     }
