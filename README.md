@@ -1,15 +1,21 @@
 # Traffic Monitor
 
-A Python application that monitors network traffic usage (using vnstat) for various cloud and data center environments. It helps prevent excessive data transfer costs by sending staged email notifications or discord messages at specified intervals, and automatically shuts down the system when a critical threshold is reached.
+A Rust application that monitors network traffic usage (using vnstat) for various cloud and data center environments. It helps prevent excessive data transfer costs by sending staged email notifications or discord messages at specified intervals, and automatically shuts down the system when a critical threshold is reached.
 
 ## 🚀 Quick Start (One Command Setup)
 
 ```bash
 # Install vnstat (one-time setup)
-sudo apt install vnstat && sudo vnstat -u -i $(ip route | grep default | awk '{print $5}' | head -1)
+sudo apt install vnstat
+
+# Clone and build the application
+git clone https://github.com/faker2048/traffic-monitor.git
+cd traffic-monitor
+cargo build --release
 
 # Run with 2TB limit and Discord notifications (replace YOUR_WEBHOOK_URL)
-uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
+# Add --install to install it as systemd service
+sudo ./target/release/traffic_monitor run \
   --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN \
   --limit 2048 \
   --install
@@ -20,175 +26,80 @@ Perfect for:
 - **Cloud Server Traffic Control**: Suitable for Alibaba Cloud, Tencent Cloud, and other cloud servers with traffic-based billing  
 - **Data Center Bandwidth Management**: Monitor and manage network traffic usage in data centers
 
-
 ## Features
 
 - Monitors network traffic using vnstat
 - Multiple notification methods: Email (SMTP) and Discord webhooks
 - Daily traffic reports with usage statistics
 - Automatically shuts down when critical threshold is reached
-- Cross-platform support (Linux, Windows with WSL, macOS)
+- Cross-platform support (Linux, Windows with WSL)
 
 ## Requirements
 
-- Python 3.6+
+- Rust (cargo) to build the binary
 - vnstat
 - SMTP server (for email) or Discord webhook URL (for Discord notifications)
 
-## Installation
+## Installation & Usage
 
-### Quick Start with uvx (Recommended)
-
-#### Direct from GitHub (No local installation needed)
-
-1. Install vnstat (system dependency):
-   ```bash
-   # Ubuntu/Debian
-   sudo apt install vnstat
-   
-   # CentOS/RHEL
-   sudo yum install vnstat
-   
-   # macOS
-   brew install vnstat
-   ```
-
-2. Configure vnstat:
-   ```bash
-   sudo vnstat -u -i YOUR_INTERFACE
-   sudo systemctl enable vnstat
-   sudo systemctl start vnstat
-   ```
-
-3. Run directly from GitHub with complete example:
-   ```bash
-   # Run with Discord webhook and 2TB limit (2048GB total inbound+outbound traffic)
-   # Perfect for AWS Lightsail which counts both incoming and outgoing traffic
-   uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-     --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN \
-     --limit 2048 \
-     --interval 100 \
-     --critical 90
-   ```
-
-4. Install as system service (auto-start on boot):
-   ```bash
-   # Install service that automatically starts on system boot
-   sudo uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-     --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN \
-     --limit 2048 \
-     --install
-   ```
-
-#### Parameter Explanation:
-- `--limit 2048`: Total traffic limit of 2048GB (2TB). This counts **both inbound and outbound traffic combined**
-- `--interval 100`: Send alert notifications every 100GB of usage
-- `--critical 90`: Trigger shutdown when reaching 90% of total limit (1843GB in this example)
-- `--discord`: Discord webhook URL for notifications
-- `--install`: Install as systemd service with auto-start on boot
-
-### Cloud Provider Specific Setup
-
-#### AWS Lightsail (Recommended settings)
+### 1. Install vnstat (System Dependency)
 ```bash
-# Lightsail counts both inbound and outbound traffic
-# 1TB plan with 5% safety margin and frequent alerts
-sudo uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-  --discord https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN \
-  --limit 1024 \
-  --interval 50 \
-  --critical 95 \
-  --install
+# Ubuntu/Debian
+sudo apt install vnstat
+
+# CentOS/RHEL
+sudo yum install vnstat
 ```
 
-#### AWS EC2 (Data Transfer Out focus)
+Ensure the vnstat daemon is enabled and running:
 ```bash
-# EC2 typically charges for outbound traffic only
-# 2TB conservative limit with standard intervals
-sudo uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-  --discord https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN \
-  --limit 2048 \
-  --interval 100 \
-  --critical 90 \
-  --install
+sudo systemctl enable vnstat
+sudo systemctl start vnstat
 ```
 
-#### Other Cloud Providers
-- **Alibaba Cloud/Tencent Cloud**: Usually count both inbound and outbound
-- **DigitalOcean**: Check your specific plan's bandwidth limits
-- **Vultr/Linode**: Most plans include generous bandwidth allowances
-
-**Important Notes:**
-- `--limit 2048` = 2048GB total bandwidth (inbound + outbound combined)
-- Lightsail plans typically count ALL traffic toward your monthly allowance
-- EC2 free tier includes 1GB outbound per month, paid plans vary by region
-
-### Traditional Installation
-
-1. Clone and install:
-   ```bash
-   git clone https://github.com/faker2048/traffic-monitor.git
-   cd traffic-monitor
-   pip install -e .
-   ```
-
-2. Run:
-   ```bash
-   traffic-monitor run --discord <YOUR_DISCORD_WEBHOOK_URL>
-   ```
-
-## Usage
-
-### Remote Usage Examples (Recommended)
+### 2. Build and Run the Traffic Monitor
 
 ```bash
+# Clone the repository
+git clone https://github.com/faker2048/traffic-monitor.git
+cd traffic-monitor
+
+# Build the release profile
+cargo build --release
+
 # Basic usage: 2TB limit with Discord notifications
-uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-  --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN \
-  --limit 2048
+./target/release/traffic_monitor run --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN --limit 2048
 
 # AWS Lightsail optimized: 1TB limit, alerts every 50GB, shutdown at 95%
-uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-  --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN \
-  --limit 1024 \
-  --interval 50 \
-  --critical 95
+./target/release/traffic_monitor run --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN --limit 1024 --interval 50 --critical 95
 
-# Install as system service for AWS EC2/Lightsail
-sudo uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-  --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN \
-  --limit 2048 \
-  --interval 100 \
-  --install
+# Install as system service for auto-start on boot (requires sudo)
+sudo ./target/release/traffic_monitor run --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN --limit 2048 --install
 
 # Run with email notifications instead of Discord
-uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
+./target/release/traffic_monitor run \
   --email-server smtp.gmail.com \
   --email-user your-email@gmail.com \
   --email-pass your-app-password \
   --email-sender traffic-monitor@yourdomain.com \
-  --email-recipients admin@yourdomain.com,ops@yourdomain.com \
+  --email-recipients admin@yourdomain.com \
   --limit 2048
 
-# Check current traffic status (after installation)
-uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor status
+# Check current traffic status
+./target/release/traffic_monitor status
 
-# View current configuration
-uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor config-show
+# View configuration
+./target/release/traffic_monitor config-show
 ```
 
-### Local Installation Usage
-
-```bash
-# If you have installed locally
-traffic-monitor run --discord <webhook_url> --limit 2048
-
-# Install as service locally
-sudo traffic-monitor run --discord <webhook_url> --limit 2048 --install
-
-# Check status locally
-traffic-monitor status
-```
+### Parameter Explanation:
+- `--limit 2048`: Total traffic limit of 2048GB (2TB). This counts **both inbound and outbound traffic combined**
+- `--interval 100`: Send alert notifications every 100GB of usage
+- `--critical 90`: Trigger shutdown when reaching 90% of total limit (1843GB in this example)
+- `--no-shutdown`: Disable system shutdown even when the critical limit is exceeded (only sends notifications)
+- `--discord`: Discord webhook URL for notifications
+- `--install`: Install as systemd service with auto-start on boot
+- `--once`: Run the checks once and exit (perfect for cron)
 
 ### Service Management
 
@@ -204,12 +115,12 @@ sudo systemctl stop traffic-monitor
 sudo systemctl start traffic-monitor
 
 # Uninstall service
-sudo uvx traffic-monitor uninstall
+sudo ./target/release/traffic_monitor uninstall
 ```
 
 ## Configuration
 
-Configuration is automatically created when you first run the application. You can also manually edit `~/.config/traffic-monitor/settings.toml`:
+Configuration is automatically created at `~/.config/traffic-monitor/settings.toml` when you first run the application. You can also manually edit it:
 
 ```toml
 [thresholds]
@@ -243,16 +154,9 @@ daily_report_hour = 8
 [action]
 delay_seconds = 60
 force = false
+disable_shutdown = false
 ```
-
-## Getting Discord Webhook URL
-
-1. Go to your Discord server
-2. Server Settings → Integrations → Webhooks
-3. Create New Webhook
-4. Copy the Webhook URL
-5. Use it with `--discord <webhook_url>`
 
 ## License
 
-MIT 
+MIT

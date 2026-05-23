@@ -1,44 +1,37 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance when working with code in this repository.
 
 ## Commands
 
-### Installation and Usage
-
-#### Remote from GitHub (Recommended)
+### Build & Run
 ```bash
-# Direct run from GitHub with full example
-uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-  --discord https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN \
-  --limit 2048 \
-  --interval 100 \
-  --critical 90
+# Build the project
+cargo build
 
-# Install as system service from GitHub
-sudo uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor run \
-  --discord <webhook_url> \
-  --limit 2048 \
-  --install
+# Run in development mode
+cargo run -- run --limit 2048 --once
 
-# Check status from GitHub
-uvx --from git+https://github.com/faker2048/traffic-monitor traffic-monitor status
+# Run the release binary directly
+./target/release/traffic_monitor run --limit 2048 --discord <webhook_url> --once
 ```
 
-#### Local Installation
+### Installation
 ```bash
-# Install locally and run
-pip install -e .
-traffic-monitor run --discord <webhook_url> --limit 2048
+# Build release binary
+cargo build --release
 
-# Install as system service locally
-sudo traffic-monitor run --discord <webhook_url> --install
+# Install as systemd service (requires sudo)
+sudo ./target/release/traffic_monitor run --limit 2048 --discord <webhook_url> --install
+```
 
-# Run with email notifications
-traffic-monitor run --email-server smtp.gmail.com --email-user user@gmail.com --email-pass password
+### Testing
+```bash
+# Run all tests
+cargo test
 
-# Run with custom configuration
-traffic-monitor run --config /path/to/config.toml
+# Run a specific test
+cargo test data_provider::tests::test_parse_monthly_usage
 ```
 
 ### Service Management
@@ -53,112 +46,60 @@ sudo journalctl -u traffic-monitor -f
 sudo systemctl stop traffic-monitor
 sudo systemctl start traffic-monitor
 
-# Uninstall service
-sudo uvx traffic-monitor uninstall
+# Uninstall service (requires sudo)
+sudo ./target/release/traffic_monitor uninstall
 ```
 
 ### CLI Commands
 ```bash
 # Show current traffic status
-uvx traffic-monitor status
+./target/release/traffic_monitor status
 
 # Show configuration
-uvx traffic-monitor config-show
+./target/release/traffic_monitor config-show
 
 # Show notification state (what thresholds have been notified)
-uvx traffic-monitor state
+./target/release/traffic_monitor state
 
 # Reset notification state (for testing or new month)
-uvx traffic-monitor reset-state
+./target/release/traffic_monitor reset-state
 
 # Service management help
-uvx traffic-monitor service
-```
-
-### Development
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run tests
-python -m pytest traffic_monitor/
-
-# Run individual test files
-python traffic_monitor/notifiers/discord_notifier_test.py
-python traffic_monitor/notifiers/email_notifier_test.py
-python traffic_monitor/data_providers/vnstat_provider_test.py
-```
-
-### System Dependencies
-```bash
-# Required system dependency
-sudo apt install vnstat  # Ubuntu/Debian
-sudo yum install vnstat   # CentOS/RHEL
-brew install vnstat       # macOS
+./target/release/traffic_monitor service
 ```
 
 ## Architecture
 
-### Core Components
+### Core Components (Rust)
 
-**Main Application** (`main.py`):
-- Entry point that orchestrates all components
-- Implements `MultiNotifier` composite pattern for handling multiple notification channels
-- Manages application lifecycle and error handling
+**Main Application** (`src/main.rs`):
+- CLI parsing using `clap` and main coordination.
+- Handles service install/uninstall and configuration loading/saving.
+- Sets up logging and initializes the monitor loop.
 
-**Traffic Monitor** (`monitors/traffic_monitor.py`):
-- Core monitoring logic with configurable thresholds and intervals
-- Implements Protocol-based design for `Notifier` and `Action` interfaces
-- Handles startup notifications, daily reports, and threshold-based alerts
-- Supports traffic trend analysis and usage estimation
-- Uses persistent state management to prevent duplicate notifications after restarts
+**Traffic Monitor** (`src/monitor.rs`):
+- Core monitoring logic with warning interval checks and critical threshold checks.
+- Manages startup notifications, daily reports, and system actions.
+- Keeps track of state to prevent redundant notifications.
 
-**Data Provider** (`data_providers/vnstat_provider.py`):
-- Abstracts vnstat system interaction
-- Parses network traffic data from vnstat output
-- Converts various units (GiB, MiB, KiB, TiB) to GB consistently
-- Provides monthly and daily usage statistics
+**Data Provider** (`src/data_provider.rs`):
+- Interacts with the `vnstat` CLI tool.
+- Parses monthly and daily network traffic statistics from the output.
+- Converts units (GiB, MiB, KiB, TiB) consistently to GB.
 
-**Configuration System** (`config/settings.py`):
-- TOML-based configuration using dataclasses
-- Hierarchical structure: thresholds, notifiers (email/discord), monitor, action
-- Type-safe configuration loading with validation
+**Configuration** (`src/config.rs`):
+- Hierarchical configuration structure mapped from `settings.toml` via `serde` and `toml`.
+- Includes thresholds, notifier options (email/discord), monitoring parameters, and action parameters.
 
-**Notification System**:
-- Email notifications via SMTP (`notifiers/email_notifier.py`)
-- Discord webhook notifications (`notifiers/discord_notifier.py`)
-- Composite pattern allows multiple simultaneous notification channels
+**Notification System** (`src/notifier.rs`):
+- Discord webhook integration using `ureq` and `serde_json`.
+- SMTP email notifications via the `lettre` crate.
+- `MultiNotifier` composite allowing multiple channels to be notified simultaneously.
 
-**Action System** (`actions/shutdown.py`):
-- Handles critical threshold responses (system shutdown)
-- Configurable delay and force options
+**Action System** (`src/action.rs`):
+- Executes system shutdown when the critical threshold is exceeded.
+- Configurable delay and force options.
 
-**State Manager** (`state_manager.py`):
-- Manages persistent storage of notification states in `~/.config/traffic-monitor/state.json`
-- Prevents duplicate notifications after service restarts
-- Automatically resets state for new months
-- Tracks notified thresholds, critical notifications, and daily report status
-
-### Key Design Patterns
-
-- **Protocol Pattern**: Used for `Notifier` and `Action` interfaces to enable dependency injection
-- **Composite Pattern**: `MultiNotifier` manages multiple notification channels
-- **Data Provider Pattern**: Abstracts traffic data sources (currently vnstat)
-- **Configuration as Code**: TOML-based configuration with dataclass validation
-
-### Configuration Structure
-
-The application uses a hierarchical TOML configuration:
-- `thresholds`: Traffic limits and alert intervals
-- `notifiers.email`: SMTP configuration for email alerts
-- `notifiers.discord`: Webhook configuration for Discord alerts  
-- `monitor`: Check intervals, interface selection, and reporting settings
-- `action`: Shutdown behavior configuration
-
-### Traffic Monitoring Logic
-
-1. **Threshold Monitoring**: Sends alerts at configurable GB intervals (e.g., every 100GB)
-2. **Critical Threshold**: Triggers shutdown action at configurable percentage of total limit
-3. **Daily Reporting**: Sends comprehensive usage reports at specified hour
-4. **Startup Notifications**: Provides current status when service starts
-5. **Traffic Trend Analysis**: Includes historical usage patterns in reports
+**State Manager** (`src/state_manager.rs`):
+- Manages persistent storage of notification states in `~/.config/traffic-monitor/state.json`.
+- Resets month-specific counters and flags on month transitions.
