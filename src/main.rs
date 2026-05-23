@@ -26,6 +26,7 @@ const DEFAULT_CONFIG_FILE_NAME: &str = "settings.toml";
 #[cfg(unix)]
 unsafe extern "C" {
     fn geteuid() -> u32;
+    fn kill(pid: i32, sig: i32) -> i32;
 }
 
 fn check_root() -> bool {
@@ -33,6 +34,51 @@ fn check_root() -> bool {
     unsafe { geteuid() == 0 }
     #[cfg(not(unix))]
     false
+}
+
+#[cfg(unix)]
+fn process_alive(pid: u32) -> bool {
+    unsafe { kill(pid as i32, 0) == 0 }
+}
+
+#[cfg(not(unix))]
+fn process_alive(_pid: u32) -> bool {
+    false
+}
+
+struct PidLock {
+    path: PathBuf,
+}
+
+impl PidLock {
+    fn acquire(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+        if path.exists() {
+            if let Ok(content) = fs::read_to_string(&path) {
+                if let Ok(pid) = content.trim().parse::<u32>() {
+                    if pid != std::process::id() && process_alive(pid) {
+                        return Err(format!(
+                            "traffic-monitor is already running (pid {}).\n\
+                             To stop it:        kill {}\n\
+                             If this is stale:  rm {}",
+                            pid, pid, path.display()
+                        ).into());
+                    }
+                }
+            }
+            let _ = fs::remove_file(&path);
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&path, std::process::id().to_string())?;
+        Ok(PidLock { path })
+    }
+}
+
+impl Drop for PidLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
 }
 
 fn get_default_config_path() -> Option<PathBuf> {
@@ -298,6 +344,18 @@ fn run_app(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 install_systemd_service(&config_path)?;
                 return Ok(());
             }
+
+            // Prevent multiple long-running instances (let --once skip the lock so
+            // ad-hoc / cron-style runs don't fight with the daemon).
+            let _pid_lock = if !once {
+                let pid_path = config_path
+                    .parent()
+                    .map(|p| p.join("traffic-monitor.pid"))
+                    .unwrap_or_else(|| PathBuf::from("/tmp/traffic-monitor.pid"));
+                Some(PidLock::acquire(pid_path)?)
+            } else {
+                None
+            };
 
             // Load settings
             let app_config = load_settings(&config_path)?;
