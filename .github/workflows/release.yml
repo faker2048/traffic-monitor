@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build x86_64 and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Install musl tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Cache cargo registry and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-musl-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build release binary (x86_64-unknown-linux-musl)
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Stage release artifacts
+        run: |
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-musl/release/traffic_monitor dist/traffic-monitor-x86_64-linux
+          strip dist/traffic-monitor-x86_64-linux || true
+          (cd dist && sha256sum traffic-monitor-x86_64-linux > traffic-monitor-x86_64-linux.sha256)
+          ls -lh dist
+
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, uploading assets (overwrite)..."
+            gh release upload "$TAG" \
+              dist/traffic-monitor-x86_64-linux \
+              dist/traffic-monitor-x86_64-linux.sha256 \
+              --clobber
+          else
+            echo "Creating release $TAG..."
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              dist/traffic-monitor-x86_64-linux \
+              dist/traffic-monitor-x86_64-linux.sha256
+          fi

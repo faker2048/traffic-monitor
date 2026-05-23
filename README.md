@@ -4,17 +4,34 @@ A Rust application that monitors network traffic usage (using vnstat) for variou
 
 ## 🚀 Quick Start (One Command Setup)
 
-```bash
-# Install vnstat (one-time setup)
-sudo apt install vnstat
+### Remote one-liner (recommended, x86_64 Linux)
 
-# Clone and build the application
+Downloads the latest prebuilt binary from GitHub Releases, installs vnstat if missing,
+and (when extra args are passed) registers a systemd service in one shot:
+
+```bash
+# Install binary + set up systemd service with 2TB limit + Discord notifications
+curl -fsSL https://raw.githubusercontent.com/faker2048/traffic-monitor/master/install.sh \
+  | sudo bash -s -- \
+      --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN \
+      --limit 2048
+```
+
+Or just install the binary without configuring the service:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/faker2048/traffic-monitor/master/install.sh | sudo bash
+sudo traffic-monitor status
+```
+
+### Build from source
+
+```bash
+sudo apt install vnstat
 git clone https://github.com/faker2048/traffic-monitor.git
 cd traffic-monitor
 cargo build --release
 
-# Run with 2TB limit and Discord notifications (replace YOUR_WEBHOOK_URL)
-# Add --install to install it as systemd service
 sudo ./target/release/traffic_monitor run \
   --discord https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN \
   --limit 2048 \
